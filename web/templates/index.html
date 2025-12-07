@@ -38,6 +38,16 @@ https://site3.com">{{ request.form.get('seeds', '') }}</textarea>
           placeholder="Votre requête...">{{ request.form.get('query', '') }}</textarea>
     </div>
 
+    <!-- 🆕 Champ alpha ajouté -->
+    <div class="mb-3">
+        <label for="alpha" class="form-label">
+            Facteur d’amortissement α (0 &lt; α &lt; 1)
+        </label>
+        <input type="number" name="alpha" id="alpha"
+               class="form-control" step="0.01" min="0.10" max="0.99"
+               value="{{ request.form.get('alpha', 0.85) }}">
+    </div>
+
     <button type="submit" class="btn btn-primary w-100">Lancer l'analyse</button>
 </form>
 

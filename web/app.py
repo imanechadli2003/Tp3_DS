@@ -4,6 +4,10 @@ import time, re, requests
 from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
 import tldextract
+import requests
+
+session = requests.Session()
+
 
 app = Flask(__name__)
 
@@ -51,7 +55,7 @@ def domain(url: str) -> str:
 
 def fetch(url: str) -> str | None:
     try:
-        resp = requests.get(url, headers=HEADERS, timeout=REQUEST_TIMEOUT, allow_redirects=True)
+        resp = session.get(url, headers=HEADERS, timeout=REQUEST_TIMEOUT, allow_redirects=True)
         if resp.status_code == 200 and is_probable_html(resp):
             return resp.text
         return None
@@ -89,6 +93,7 @@ def compute_pagerank(G: nx.DiGraph, damping: float = 0.85):
     return nx.pagerank(G, alpha=damping)
 
 
+
 def compute_hits(G: nx.DiGraph):
     hubs, authorities = nx.hits(G, max_iter=500, normalized=True)
     return hubs, authorities
@@ -103,6 +108,15 @@ def index():
         query = request.form.get("query", "").strip()
         critere = request.form.get("critere", "PageRank")
 
+        # Nouveau : récupération du facteur d'amortissement alpha
+        alpha_raw = request.form.get("alpha", "").strip()
+        try:
+            alpha = float(alpha_raw) if alpha_raw else 0.85
+            if not (0.0 < alpha < 1.0):
+                alpha = 0.85
+        except ValueError:
+            alpha = 0.85
+
         if not seeds_raw or not query:
             flash("Veuillez renseigner au moins un seed et une requête.", "danger")
             return render_template("index.html")
@@ -112,11 +126,10 @@ def index():
         scores = {}
         execution_time = 0.0
 
-        
         if critere == "PageRank":
             t0 = time.time()
             G = crawl_and_build_graph(seeds)
-            pr = compute_pagerank(G)
+            pr = compute_pagerank(G, damping=alpha)
             t1 = time.time()
             execution_time = t1 - t0
             scores["PageRank"] = sorted(pr.items(), key=lambda x: x[1], reverse=True)[:K]
@@ -132,10 +145,12 @@ def index():
         results = {
             "query": query,
             "scores": scores,
-            "execution_time": execution_time
+            "execution_time": execution_time,
+            "alpha": alpha,   # pour l'afficher dans la page
         }
 
     return render_template("index.html", results=results)
+
 
 
 if __name__ == "__main__":
